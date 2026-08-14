@@ -17,12 +17,12 @@
 #define WM_AP_NAME_F String(F("Lay-Z-Spa-"))+String(ESP.getChipId())
 #define WM_AP_PASSWORD_F F("layzspam0dule")
 // MQTT defaults
-#define MQTT_HOST_F F("192.168.0.20")
-#define MQTT_USER_F F("username")
+#define MQTT_HOST_F F("192.168.2.253")
+#define MQTT_USER_F F("mqtt")
 #define MQTT_PASSWORD_F F("password")
 #define MQTT_PORT 1883
 #define MQTT_TELEMETRY_INTERVAL 600
-#define MQTT_USEMQTT false
+#define MQTT_USEMQTT true
 #define MQTT_CLIENT_ID_F DEVICE_NAME_F
 #define MQTT_BASE_TOPIC_F DEVICE_NAME_F
 /*

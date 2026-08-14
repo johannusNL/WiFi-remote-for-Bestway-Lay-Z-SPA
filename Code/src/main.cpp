@@ -135,7 +135,7 @@ void loop()
     {
 
         // MQTT
-        if (mqtt_info->useMqtt && mqttClient->loop())
+        if (mqtt_info->useMqtt && mqttClient && mqttClient->loop())
         {
             String msg;
             msg.reserve(32);
@@ -173,7 +173,7 @@ void loop()
         {
             wifi_manual_reconnect();
         }
-        if (mqtt_info->useMqtt && !mqttClient->loop() && (WiFi.status() == WL_CONNECTED))
+        if (mqtt_info->useMqtt && (mqttClient == nullptr || !mqttClient->loop()) && (WiFi.status() == WL_CONNECTED))
         {
             BWC_LOG_P(PSTR("MQTT > Not connected\n"),0);
             mqttConnect();
@@ -232,7 +232,10 @@ void getOtherInfo(String &rtn)
     StaticJsonDocument<512> doc;
     // Set the values in the document
     doc[F("CONTENT")] = F("OTHER");
-    doc[F("MQTT")] = mqttClient->state();
+    if(mqttClient)
+        doc[F("MQTT")] = mqttClient->state();
+    else
+        doc[F("MQTT")] = -127;
     /*TODO: add these:*/
     //   doc[F("PressedButton")] = bwc->getPressedButton();
     doc[F("HASJETS")] = bwc->hasjets;
@@ -267,6 +270,8 @@ void sendMQTT()
     // Serial.printf("IRamheap %d\n", ESP.getFreeHeap());
     String json;
     json.reserve(320);
+
+    if(!mqttClient) return;
 
     // send states
     bwc->getJSONStates(json);
@@ -311,8 +316,10 @@ void sendMQTTConfig()
     String json;
     json.reserve(320);
     bwc->getJSONSettings(json);
-    mqttClient->publish((String(mqtt_info->mqttBaseTopic) + F("/get_config")).c_str(), String(json).c_str(), true);
-    mqttClient->loop();
+    if(mqttClient) {
+        mqttClient->publish((String(mqtt_info->mqttBaseTopic) + F("/get_config")).c_str(), String(json).c_str(), true);
+        mqttClient->loop();
+    }
     BWC_YIELD;
 }
 
@@ -482,7 +489,7 @@ void stopall()
     delete tempSensors;
     delete oneWire;
     BWC_LOG_P(PSTR("MQTT > stopping\n"),0);
-    if(mqtt_info->useMqtt) mqttClient->disconnect();
+    if(mqtt_info->useMqtt && mqttClient) mqttClient->disconnect();
     if(aWifiClient) delete aWifiClient;
     aWifiClient = nullptr;
     // delete mqttClient; //Compiler nagging about not deleting virtual classes.
@@ -677,7 +684,7 @@ void handleGetHardware()
 void handleSetHardware()
 {
     if (!checkHttpPost(server->method())) return;
-    String message = server->arg(0);
+    String message = getRequestBody();
     File file = LittleFS.open(F("hwcfg.json"), "w");
     if (!file)
     {
@@ -713,38 +720,60 @@ void handleInputs()
     unsigned long pin_states = 0, old_pin_states = 0; //to store result from READ_PERI_REG (GPIOs)
     unsigned long t; //timestamp - micros
     uint32_t edge_count = 0;
-    const int array_len = 1024;
-    unsigned long* p_input_log = new unsigned long[array_len*2];
+    const int max_entries = 1024;
 
-    while(edge_count < array_len)
+    // Stream entries directly to a temporary LittleFS file to avoid large heap
+    // allocations. Each line: "<micros>,<GPIOHEX>\n"
+    const char *tmpPath = "/inputlog.tmp";
+    File logFile = LittleFS.open(tmpPath, "w");
+    if (!logFile)
+    {
+        server->sendContent(F("ERROR: Could not open temp file for logging\n"));
+        bwc->setup();
+        return;
+    }
+
+    while(edge_count < max_entries)
     {
         pin_states = READ_PERI_REG(PIN_IN); //mix unsigned long with uint32_t which is the same
         if(pin_states != old_pin_states)
         {
             t = micros();
-            p_input_log[edge_count] = t; //log time
-            p_input_log[edge_count + array_len] = pin_states; //log states (all gpios)
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%u,%X\n", (unsigned) t, (unsigned) pin_states);
+            logFile.print(buf);
             edge_count++;
         }
         old_pin_states = pin_states;
-        yield(); //keep the watchdog away and manage wifi etc. Unclear how much time we waste here...
+        yield(); //keep the watchdog away and manage wifi etc.
     }
 
-    /* send statistics to client */
+    logFile.close();
+
+    /* send statistics to client by streaming the temp file */
     char s[128];
     sprintf_P(s, PSTR("micros, gpio registers\n"));
     server->sendContent(s);
-    for(int i = 0; i < array_len; i++)
+
+    File inFile = LittleFS.open(tmpPath, "r");
+    if (!inFile)
     {
-        sprintf_P(s, PSTR("%u,%X\n"), p_input_log[i], p_input_log[i+array_len]);
-        server->sendContent(s);
-        yield(); //keep the watchdog away and manage wifi etc. Unclear how much time we waste here...
+        server->sendContent(F("ERROR: Could not read temp log\n"));
+        bwc->setup();
+        return;
     }
+    while(inFile.available())
+    {
+        String line = inFile.readStringUntil('\n');
+        line += '\n';
+        server->sendContent(line.c_str());
+        yield();
+    }
+    inFile.close();
+    LittleFS.remove(tmpPath);
     sprintf_P(s, PSTR("Cut and paste all above. Zip and post on forum for help.\n"));
     server->sendContent(s);
     server->sendContent("");
-
-    delete [] p_input_log;
 
     bwc->setup();
 }
@@ -953,6 +982,16 @@ bool checkHttpPost(HTTPMethod method)
     return true;
 }
 
+String getRequestBody()
+{
+    String body = server->arg("plain");
+    if (body.length() == 0)
+    {
+        body = server->arg(0);
+    }
+    return body;
+}
+
 /**
  * response for /getconfig/
  * web server prints a json document
@@ -976,7 +1015,7 @@ void handleSetConfig()
 {
     if (!checkHttpPost(server->method())) return;
 
-    String message = server->arg(0);
+    String message = getRequestBody();
     bwc->setJSONSettings(message);
 
     server->send(200, F("text/plain"), "");
@@ -1250,7 +1289,7 @@ void handleSetWebConfig()
 
     // DynamicJsonDocument doc(256);
     StaticJsonDocument<256> doc;
-    String message = server->arg(0);
+    String message = getRequestBody();
     DeserializationError error = deserializeJson(doc, message);
     if (error)
     {
@@ -1389,7 +1428,7 @@ void handleSetWifi()
     if (!checkHttpPost(server->method())) return;
 
     DynamicJsonDocument doc(1024);
-    String message = server->arg(0);
+    String message = getRequestBody();
     DeserializationError error = deserializeJson(doc, message);
     if (error)
     {
@@ -1488,7 +1527,15 @@ void loadMqtt()
     mqtt_info->mqttHost = doc[F("mqttHost")].as<String>();
     mqtt_info->mqttPort = doc[F("mqttPort")];
     mqtt_info->mqttUsername = doc[F("mqttUsername")].as<String>();
-    mqtt_info->mqttPassword = doc[F("mqttPassword")].as<String>();
+    // If the client left the password field as the placeholder '<enter password>'
+    // treat that as "no change" and keep the existing password.
+    {
+        String newPass = doc[F("mqttPassword")].as<String>();
+        if (newPass != "<enter password>")
+        {
+            mqtt_info->mqttPassword = newPass;
+        }
+    }
     mqtt_info->mqttClientId = doc[F("mqttClientId")].as<String>();
     mqtt_info->mqttBaseTopic = doc[F("mqttBaseTopic")].as<String>();
     mqtt_info->mqttTelemetryInterval = doc[F("mqttTelemetryInterval")];
@@ -1567,7 +1614,7 @@ void handleSetMqtt()
     if (!checkHttpPost(server->method())) return;
 
     DynamicJsonDocument doc(1024);
-    String message = server->arg(0);
+    String message = getRequestBody();
     DeserializationError error = deserializeJson(doc, message);
     if (error)
     {
@@ -1580,7 +1627,13 @@ void handleSetMqtt()
     mqtt_info->mqttHost = doc[F("mqttHost")].as<String>();
     mqtt_info->mqttPort = doc[F("mqttPort")];
     mqtt_info->mqttUsername = doc[F("mqttUsername")].as<String>();
-    mqtt_info->mqttPassword = doc[F("mqttPassword")].as<String>();
+
+    String submittedPassword = doc[F("mqttPassword")].as<String>();
+    if (submittedPassword.length() > 0 && submittedPassword != F("<enter password>"))
+    {
+        mqtt_info->mqttPassword = submittedPassword;
+    }
+
     mqtt_info->mqttClientId = doc[F("mqttClientId")].as<String>();
     mqtt_info->mqttBaseTopic = doc[F("mqttBaseTopic")].as<String>();
     mqtt_info->mqttTelemetryInterval = doc[F("mqttTelemetryInterval")];
@@ -1783,7 +1836,7 @@ void startMqtt()
         loadMqtt();
 
         // disconnect in case we are already connected
-        mqttClient->disconnect();
+        if(mqttClient) mqttClient->disconnect();
 
         // setup MQTT broker information as defined earlier
         mqttClient->setServer(mqtt_info->mqttHost.c_str(), mqtt_info->mqttPort);

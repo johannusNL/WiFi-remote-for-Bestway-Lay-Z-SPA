@@ -49,6 +49,7 @@
 		</tr>
 	</table>
 </section>
+<div id="mqttSaveStatus" style="margin-top: 12px; min-height: 1.5em; font-weight: bold;"></div>
 {% endblock %}
 
 {% block footer %}
@@ -80,12 +81,27 @@
 	}
 
 	function saveMqttConfig() {
-		if (!validatePassword('mqttPassword')) return
+		// Allow saving even if the password field contains the placeholder
+		// (the server ignores the placeholder and keeps the existing password).
 
 		buttonConfirm(document.getElementById('save'))
+		var statusNode = document.getElementById('mqttSaveStatus')
+		statusNode.textContent = 'Saving...'
+		statusNode.style.color = '#666'
 
 		var req = new XMLHttpRequest()
 		req.open('POST', '/setmqtt/')
+		req.setRequestHeader('Content-Type', 'application/json')
+		req.onreadystatechange = function () {
+			if (this.readyState !== 4) return
+			if (this.status === 200) {
+				statusNode.textContent = 'Saved successfully'
+				statusNode.style.color = '#2e7d32'
+			} else {
+				statusNode.textContent = 'Save failed (' + this.status + ')'
+				statusNode.style.color = '#c62828'
+			}
+		}
 		var json = {
 			'enableMqtt': (document.getElementById('enableMqtt').checked),
 			'mqttHost': (document.getElementById('mqttHost').value),
@@ -97,7 +113,10 @@
 			'mqttTelemetryInterval': (document.getElementById('mqttTelemetryInterval').value)
 		}
 		req.send(JSON.stringify(json))
-		document.getElementById('mqttPassword').value = '<enter password>'
+		if (document.getElementById('mqttPassword').value !== '')
+		{
+			document.getElementById('mqttPassword').value = '<enter password>'
+		}
 	}
 </script>
 {% endblock %}

@@ -24,11 +24,22 @@
                 </label>
             </form>
             {% endblock %}
+            <div id="wifiSignalMeter" class="wifi-signal" data-level="0" title="WiFi signal strength" aria-live="polite">
+                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+                    <path class="wifi-arc arc-3" d="M2.1 9.0 C7.7 4.2 16.3 4.2 21.9 9.0" />
+                    <path class="wifi-arc arc-2" d="M5.4 12.5 C9.3 9.3 14.7 9.3 18.6 12.5" />
+                    <path class="wifi-arc arc-1" d="M8.7 16.0 C10.6 14.4 13.4 14.4 15.3 16.0" />
+                    <circle class="wifi-dot" cx="12" cy="19.6" r="1.9" />
+                </svg>
+            </div>
             <a href="./">
                 <div id="header">
                     {% block header_headline_title %}
                     {% endblock %}
-                    <span data-i18n="header_module">lay-z-spa module</span>
+                    <span>
+                        <span data-i18n="header_module">lay-z-spa module</span>
+                        <span id="byline">&mdash; By Johan</span>
+                    </span>
                 </div>
             </a>
             {% block header_top_navigation_icon %}

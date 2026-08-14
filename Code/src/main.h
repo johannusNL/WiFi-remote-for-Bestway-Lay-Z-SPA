@@ -108,6 +108,7 @@ void handleNotFound();
 String getContentType(const String& filename);
 bool handleFileRead(String path);
 bool checkHttpPost(HTTPMethod method);
+String getRequestBody();
 void handleGetConfig();
 void handleSetConfig();
 void handleGetCommandQueue();

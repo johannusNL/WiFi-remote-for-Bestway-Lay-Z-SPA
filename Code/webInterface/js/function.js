@@ -74,3 +74,57 @@ function buttonConfirm(elem, text = "", timeout = 3, reset = true) {
         }, timeout * 1000)
     }
 }
+
+function updateWifiSignalDisplay(rssi) {
+    const meter = document.getElementById('wifiSignalMeter')
+    if (!meter) return
+
+    if (typeof rssi !== 'number' || Number.isNaN(rssi) || rssi >= 0) {
+        meter.setAttribute('data-level', '0')
+        meter.setAttribute('title', 'WiFi: no signal')
+        return
+    }
+
+    // iPhone-like 3 segment scale
+    let level = 1
+    if (rssi > -60) level = 3
+    else if (rssi > -75) level = 2
+
+    meter.setAttribute('data-level', String(level))
+    meter.setAttribute('title', 'WiFi: ' + rssi + ' dBm')
+}
+
+function startGlobalWifiSignalMonitor() {
+    if (window.globalWifiSignalMonitor) return
+
+    const meter = document.getElementById('wifiSignalMeter')
+    if (!meter) return
+
+    const socket = new WebSocket('ws://' + location.hostname + ':81/', ['arduino'])
+    window.globalWifiSignalMonitor = socket
+
+    socket.onmessage = function (event) {
+        try {
+            const msg = JSON.parse(event.data)
+            if (msg && msg.CONTENT === 'OTHER' && typeof msg.RSSI === 'number') {
+                updateWifiSignalDisplay(msg.RSSI)
+            }
+        } catch (e) { }
+    }
+
+    socket.onerror = function () {
+        updateWifiSignalDisplay(NaN)
+    }
+
+    socket.onclose = function () {
+        updateWifiSignalDisplay(NaN)
+        setTimeout(function () {
+            if (window.globalWifiSignalMonitor === socket) {
+                startGlobalWifiSignalMonitor()
+            }
+        }, 5000)
+    }
+}
+
+window.addEventListener('load', startGlobalWifiSignalMonitor)
+

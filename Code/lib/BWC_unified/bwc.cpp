@@ -1151,7 +1151,12 @@ String BWC::getJSONCommandQueue(){
     #ifdef ESP8266
     ESP.wdtFeed();
     #endif
-    DynamicJsonDocument doc(8192);
+    // Place the JSON allocation into IRAM to avoid heap fragmentation and
+    // reduce heap pressure. The previous size (8192) was large; reduce to
+    // 4096 which should be sufficient for typical queues. If this proves
+    // insufficient, increase cautiously or serialize in chunks.
+    HeapSelectIram ephemeral;
+    DynamicJsonDocument doc(4096);
     // Set the values in the document
     doc[F("LEN")] = _command_que.size();
     for(unsigned int i = 0; i < _command_que.size(); i++){

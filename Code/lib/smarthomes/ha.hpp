@@ -156,6 +156,17 @@ void setupHA()
     strcpy_P(_unit_of_meas, fs_unit_of_meas);
     strcpy_P(_dev_cla, fs_dev_cla);
 
+    // If MQTT client is not available or not connected, skip HA setup to avoid
+    // multiple dereferences of a null pointer below.
+    if (!mqttClient) {
+        bwc->saveDebugInfo(String(F("HA setup skipped: mqttClient==NULL")));
+        return;
+    }
+    if (!mqttClient->connected()) {
+        bwc->saveDebugInfo(String(F("HA setup skipped: mqttClient not connected")));
+        return;
+    }
+
     /* DEVICE */
     /*
     if(!mqttClient->connected()){
