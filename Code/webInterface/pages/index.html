@@ -11,53 +11,120 @@
 {% block content %}
 <!-- ==================== SECTION: Display Panel ==================== -->
 <section id="sectionDisplay">
-  <table>
-    <tr>
-      <td class="center">
-        <div id="display">[DSP]</div>
-      </td>
-    </tr>
-  </table>
-</section>
-
-<!-- ==================== SECTION: Temperature ==================== -->
-<section id="sectionTemperature">
-  <div class="visualapproach"></div>
-  <h2 data-i18n="section_temp_title">Temperature</h2>
-  <table class="fixed">
-    <tr>
-      <td>
-        <!-- 1) Un span dédié au texte « Actual: » ou « Réel : » -->
-        <span data-i18n="label_actual">Actual:</span>
-      </td>
-      <td><span id="atlabel">n/a</span></td>
-    </tr>
-    <tr>
-      <td>
-        <!-- 2) Un span dédié au texte « Virtual: » / « Virtuel : » -->
-        <span data-i18n="label_virtual">Virtual:</span>
-
-        <!-- 3) La bulle « ? » en dehors du span de traduction -->
-        <span class="tooltip"
-          data-text="ESP attempts to keep track of water temperature even when pump is stopped and the temperature drops in the pump while the large body of water cools slower. Uses ambient temperature. Must be calibrated before working. See SPA Config page."
-          data-i18n="[data-text]tooltip_virtual">?</span>
-      </td>
-      <td><span id="vtlabel">n/a</span></td>
-    </tr>
-    <tr>
-      <td>
-        <span data-i18n="label_target">Target:</span>
-      </td>
-      <td><span id="ttlabel">n/a</span></td>
-    </tr>
-  </table>
+  <div id="displayrow" title="water temperature">
+    <svg id="watericon" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2.8c3.2 4.6 6.2 8.2 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 11 8.8 7.4 12 2.8z"/>
+      <path d="M9.2 14.2a2.9 2.9 0 0 0 2.3 3.3" fill="none" stroke="#0b2a31" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/>
+    </svg>
+    <div id="display">[DSP]</div>
+  </div>
+  <div id="statusicons">
+    <button type="button" class="sticon" id="st_pump" title="pump / filter" onclick="iconToggle('FLT','togglePump')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="12" cy="12" r="2.2"/>
+        <path d="M12 9.8C12 6 15.5 5 17 6.5 18.5 8 17.5 11 14 11.5"/>
+        <path d="M9.9 13.1C6.6 15 4 12.6 4.6 10.6 5.2 8.6 8.4 8.4 10.3 11"/>
+        <path d="M13.8 13.4C17 15.4 15.9 18.8 13.8 19.2 11.7 19.6 9.9 16.9 11.9 14.1"/>
+      </svg>
+      <span>pump</span>
+    </button>
+    <button type="button" class="sticon" id="st_heat" title="heater" onclick="iconToggle('HTR','toggleHeater')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3c1 3-4 5-4 9a4 4 0 0 0 8 0c0-2-1-3.5-2-5-.6 1.2-1.5 1.8-2 2-.2-2 .5-4.5 0-6z"/>
+      </svg>
+      <span>heater</span>
+    </button>
+    <button type="button" class="sticon" id="st_air" title="bubbles" onclick="iconToggle('AIR','toggleBubbles')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="8" cy="16" r="2.6"/>
+        <circle cx="15.5" cy="10.5" r="3.2"/>
+        <circle cx="9.5" cy="6.5" r="1.8"/>
+      </svg>
+      <span>bubbles</span>
+    </button>
+    <button type="button" class="sticon" id="st_jets" title="jets" style="display:none" onclick="iconToggle('HJT','toggleHydroJets')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M3 8c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0"/>
+        <path d="M3 13c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0"/>
+        <path d="M3 18c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0"/>
+      </svg>
+      <span>jets</span>
+    </button>
+    <button type="button" class="sticon neutral" id="st_unit" title="unit (°C/°F)" onclick="iconToggle('UNT','toggleUnit')">
+      <span id="unitglyph">°C</span>
+      <span>unit</span>
+    </button>
+    <button type="button" class="sticon" id="st_god" title="take control" style="display:none" onclick="iconToggle('GOD','toggleGodmode')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M12 3v8"/>
+        <path d="M6.6 6.6a8 8 0 1 0 10.8 0"/>
+      </svg>
+      <span>control</span>
+    </button>
+  </div>
+  <div id="quickcontrols">
+    <div class="qctrl">
+      <button type="button" class="qbtn" onclick="stepControl('temp',-1,'setTarget')">&minus;</button>
+      <div class="qval">
+        <span class="qnum" id="tgtval">--</span>
+        <span class="qlabel">target</span>
+      </div>
+      <button type="button" class="qbtn" onclick="stepControl('temp',1,'setTarget')">+</button>
+    </div>
+    <div class="qctrl">
+      <button type="button" class="qbtn" onclick="stepControl('brt',-1,'setBrightness')">&minus;</button>
+      <div class="qval">
+        <span class="qnum" id="brtval">-</span>
+        <span class="qlabel">brightness</span>
+      </div>
+      <button type="button" class="qbtn" onclick="stepControl('brt',1,'setBrightness')">+</button>
+    </div>
+    <div class="qctrl" id="ambctrl" title="Outdoor temperature. Used to estimate the water temperature while the pump is off. When the Home Assistant badge is shown, it is fed automatically over MQTT and cannot be changed here.">
+      <button type="button" class="qbtn ambstep" onclick="stepControl('amb',-1,'setAmbient')">&minus;</button>
+      <div class="qval">
+        <span class="qnum" id="ambval">--</span>
+        <span class="qlabel qlabelrow">
+          <svg id="outdooricon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>
+          </svg>
+          <span>outdoor</span>
+          <span id="ambhabadge" style="display:none" title="Set automatically by Home Assistant">
+            <svg viewBox="0 0 24 24">
+              <path fill="#18bcf2" d="M12 2.4 22.2 12h-2.7v9.2H4.5V12H1.8z"/>
+              <g fill="#fff">
+                <circle cx="12" cy="9.4" r="1.5"/>
+                <circle cx="8.2" cy="13.6" r="1.3"/>
+                <circle cx="15.8" cy="13.6" r="1.3"/>
+                <path d="M11.5 10.8h1v8.4h-1z"/>
+                <path d="M8.6 14.8l3 2.4-.6.8-3-2.4z"/>
+                <path d="M15.4 14.8l-3 2.4.6.8 3-2.4z"/>
+              </g>
+            </svg>
+          </span>
+        </span>
+      </div>
+      <button type="button" class="qbtn ambstep" onclick="stepControl('amb',1,'setAmbient')">+</button>
+    </div>
+  </div>
+  <div id="nolink" style="display:none">no data from pump</div>
+  <div id="buttonstates" style="display:none">
+    <span id="atlabel"></span><span id="vtlabel"></span><span id="ttlabel"></span>
+    <input type="checkbox" id="AIR">
+    <input type="checkbox" id="HTR"><span id="htrspan"></span>
+    <input type="checkbox" id="FLT">
+    <input type="checkbox" id="UNT">
+    <span id="jets"></span><span id="jetsswitch"></span>
+    <input type="checkbox" id="HJT">
+    <span id="god"></span><span id="godswitch"></span>
+    <input type="checkbox" id="GOD">
+  </div>
 </section>
 
 <!-- ==================== SECTION: Control ==================== -->
-<section id="sectionControl">
-  <h2 data-i18n="section_control_title">Control</h2>
+<section id="sectionControl" style="display:none">
 
-  <table id="tableSlider">
+  <table id="tableSlider" style="display:none">
     <tr>
       <td><span data-i18n="control_temp">Temperature</span></td>
       <td>
@@ -92,7 +159,7 @@
     </tr>
   </table>
 
-  <table id="tableSelector" class="fixed">
+  <table id="tableSelector" class="fixed" style="display:none">
     <tr>
       <td class="center"><span data-i18n="control_temp">Temperature</span></td>
       <td class="center"><span data-i18n="control_ambient">Ambient Temperature</span></td>
@@ -145,60 +212,6 @@
   </table>
 </section>
 
-<!-- ==================== SECTION: Buttons ==================== -->
-<section id="sectionButtons">
-  <h2 data-i18n="section_buttons_title">Buttons</h2>
-  <table class="fixed">
-    <tr>
-      <td class="right"><span data-i18n="btn_bubbles">Bubbles</span></td>
-      <td>
-        <label class="switch">
-          <input type="checkbox" id="AIR" onchange="sendCommand('toggleBubbles')">
-          <span class="slider round"></span>
-        </label>
-      </td>
-      <td class="right"><span data-i18n="btn_heater">Heater</span></td>
-      <td>
-        <label class="switch">
-          <input type="checkbox" id="HTR" onchange="sendCommand('toggleHeater')">
-          <span id="htrspan" class="slider round"></span>
-        </label>
-      </td>
-    </tr>
-    <tr>
-      <td class="right"><span data-i18n="btn_pump">Pump</span></td>
-      <td>
-        <label class="switch">
-          <input type="checkbox" id="FLT" onchange="sendCommand('togglePump')">
-          <span class="slider round"></span>
-        </label>
-      </td>
-      <td class="right"><span data-i18n="btn_unit">Unit (F/C)</span></td>
-      <td>
-        <label class="switch">
-          <input type="checkbox" id="UNT" onchange="sendCommand('toggleUnit')">
-          <span class="slider round"></span>
-        </label>
-      </td>
-    </tr>
-    <tr>
-      <td id="jets" class="right"><span data-i18n="btn_hydrojets">Hydrojets</span></td>
-      <td id="jetsswitch">
-        <label class="switch">
-          <input type="checkbox" id="HJT" onchange="sendCommand('toggleHydroJets')">
-          <span class="slider round"></span>
-        </label>
-      </td>
-      <td id="god" class="right"><span data-i18n="btn_take_control">Take control</span></td>
-      <td id="godswitch">
-        <label class="switch">
-          <input type="checkbox" id="GOD" onchange="sendCommand('toggleGodmode')">
-          <span class="slider round"></span>
-        </label>
-      </td>
-    </tr>
-  </table>
-</section>
 
 <!-- ==================== SECTION: Timer ==================== -->
 <section id="sectionTimer">

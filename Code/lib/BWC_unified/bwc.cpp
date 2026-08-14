@@ -64,15 +64,19 @@ void BWC::setup(void){
     std::optional<Power> power_levels = {};
     
     if(!_loadHardware(ciomodel, dspmodel, pins, power_levels)){
-        pins[0] = D1;
-        pins[1] = D2;
-        pins[2] = D3;
-        pins[3] = D4;
-        pins[4] = D5;
-        pins[5] = D6;
-        pins[6] = D7;
+        /* No hwcfg.json (e.g. after a filesystem flash): fall back to this
+           build's own hardware: Miami 2021 (6-wire), hand-wired D1 mini,
+           CIO data/clk/cs = D4/D3/D2, DSP = D7/D6/D5, audio = D0. */
+        ciomodel = MIAMI2021;
+        dspmodel = MIAMI2021;
+        pins[0] = D4;
+        pins[1] = D3;
+        pins[2] = D2;
+        pins[3] = D7;
+        pins[4] = D6;
+        pins[5] = D5;
+        pins[6] = D0;
         pins[7] = D8;
-        
     }
     // Serial.printf("Cio loaded: %d, dsp model: %d\n", ciomodel, dspmodel);
     for(int i = 0; i < 8; i++)
@@ -181,6 +185,14 @@ void BWC::loop(){
     #endif
     _timestamp_secs = time(nullptr);
     _updateTimes();
+    /* Daily auto-recalibration: clear the calibrated flag once per day so the
+       passive calibration in _updateVirtualTemp() runs again at the next
+       opportunity (pump on >=5 min, heater and bubbles off, natural 1 degree drift). */
+    if(_auto_recalibrate && (_timestamp_secs - _last_recal_secs >= 86400))
+    {
+        _last_recal_secs = _timestamp_secs;
+        _vt_calibrated = false;
+    }
     if(_scroll && (dsp->text.length() > 0)) 
     {
         dsp->text.remove(0,1);
@@ -1015,6 +1027,7 @@ void BWC::getJSONStates(String &rtn) {
     doc[F("VTMF")] = C2F(_virtual_temp);
     doc[F("AMBC")] = _ambient_temp;
     doc[F("AMBF")] = round(C2F(_ambient_temp));
+    doc[F("AMBSRC")] = ambient_source;
     if(cio->cio_states.unit)
     {
         //celsius
@@ -1127,6 +1140,7 @@ void BWC::getJSONSettings(String &rtn){
     doc[F("NOTIFY")] = _notify;
     doc[F("NOTIFTIME")] = _notification_time;
     doc[F("VTCAL")] = _vt_calibrated;
+    doc[F("AUTOCAL")] = _auto_recalibrate;
 
     doc[F("LCK")] = dsp->EnabledButtons[LOCK];
     doc[F("TMR")] = dsp->EnabledButtons[TIMER];
@@ -1214,6 +1228,7 @@ void BWC::setJSONSettings(const String& message){
     _notify = doc[F("NOTIFY")] | _notify;
     _notification_time = doc[F("NOTIFTIME")] | _notification_time;
     _vt_calibrated = doc[F("VTCAL")] | _vt_calibrated;
+    _auto_recalibrate = doc[F("AUTOCAL")] | _auto_recalibrate;
     dsp->EnabledButtons[LOCK] = doc[F("LCK")] | dsp->EnabledButtons[LOCK];
     dsp->EnabledButtons[TIMER] = doc[F("TMR")] | dsp->EnabledButtons[TIMER];
     dsp->EnabledButtons[BUBBLES] = doc[F("AIR")] | dsp->EnabledButtons[BUBBLES];
@@ -1424,6 +1439,7 @@ void BWC::_loadSettings(){
     _ambient_temp = doc[F("AMB")] | 20;
     _dsp_brightness = doc[F("BRT")] | 7;
     _vt_calibrated = doc[F("VTCAL")] | false;
+    _auto_recalibrate = doc[F("AUTOCAL")] | false;
 
     dsp->EnabledButtons[LOCK] = doc[F("LCK")];
     dsp->EnabledButtons[TIMER] = doc[F("TMR")];
@@ -1686,6 +1702,7 @@ void BWC::saveSettings(){
     doc[F("NOTIFY")] = _notify;
     doc[F("NOTIFTIME")] = _notification_time;
     doc[F("VTCAL")] = _vt_calibrated;
+    doc[F("AUTOCAL")] = _auto_recalibrate;
     doc[F("LCK")] = dsp->EnabledButtons[LOCK];
     doc[F("TMR")] = dsp->EnabledButtons[TIMER];
     doc[F("AIR")] = dsp->EnabledButtons[BUBBLES];

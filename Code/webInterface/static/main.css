@@ -284,14 +284,15 @@ header a {
   transform: translateY(-1px);
 }
 
-/* ============ LCD display panel ============ */
+/* ============ Status panel (temperature + function icons) ============ */
 #sectionDisplay {
-  padding: 0;
-  height: clamp(60px, 18vw, 100px);
+  padding: clamp(12px, 3vw, 18px) clamp(10px, 2.5vw, 16px);
   background: linear-gradient(180deg, #07171c 0%, #0c2229 60%, #07171c 100%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: clamp(8px, 2vw, 12px);
   margin: clamp(14px, 3.5vw, 20px) clamp(8px, 2vw, 12px) clamp(8px, 2vw, 12px);
   border: 1px solid var(--mist);
   border-radius: var(--radius-card);
@@ -300,23 +301,253 @@ header a {
 
 div#display {
   color: #3ee6f0;
-  font-size: clamp(2rem, 8vw, 4rem);
+  font-size: clamp(2.4rem, 9vw, 4.2rem);
   text-align: center;
   background: transparent;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-family: "Consolas", "Menlo", monospace;
   font-weight: normal;
   letter-spacing: 2px;
   text-shadow: 0 0 18px rgba(62, 230, 240, 0.8);
   line-height: 1;
   white-space: nowrap;
-  padding: 9px;
+  padding: 4px 9px 0;
   margin: 0;
   position: relative;
+}
+
+#statusicons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(14px, 4vw, 26px);
+}
+
+.sticon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: rgba(160, 190, 200, 0.35);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.sticon svg {
+  width: clamp(24px, 6vw, 32px);
+  height: clamp(24px, 6vw, 32px);
+}
+
+.sticon span {
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sticon.on {
+  color: #3ee6f0;
+  filter: drop-shadow(0 0 6px rgba(62, 230, 240, 0.7));
+}
+
+.sticon.heating {
+  color: #ff8a4c;
+  filter: drop-shadow(0 0 6px rgba(255, 138, 76, 0.7));
+}
+
+.sticon.ready {
+  color: #5ee08a;
+  filter: drop-shadow(0 0 6px rgba(94, 224, 138, 0.6));
+}
+
+.sticon.neutral {
+  color: rgba(160, 190, 200, 0.8);
+}
+
+/* Icons double as buttons: strip the default button chrome */
+button.sticon {
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.sticon:hover {
+  background: rgba(62, 230, 240, 0.08);
+}
+
+button.sticon:active {
+  transform: scale(0.92);
+}
+
+button.sticon:focus-visible {
+  outline: 2px solid var(--aqua);
+  outline-offset: 2px;
+}
+
+#unitglyph {
+  font-size: clamp(18px, 4.5vw, 24px);
+  font-weight: 600;
+  line-height: 1;
+  height: clamp(24px, 6vw, 32px);
+  display: flex;
+  align-items: center;
+}
+
+/* ============ Stepper controls (target temp, brightness, ambient) ============ */
+#quickcontrols {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(16px, 5vw, 40px);
+}
+
+.qctrl {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2vw, 14px);
+}
+
+.qbtn {
+  width: clamp(38px, 9vw, 44px);
+  height: clamp(38px, 9vw, 44px);
+  border-radius: 50%;
+  border: 1px solid var(--mist);
+  background: var(--foam);
+  color: var(--ink);
+  font-size: 1.4em;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.qbtn:hover {
+  background: rgba(43, 184, 204, 0.15);
+}
+
+.qbtn:active {
+  transform: scale(0.9);
+}
+
+.qbtn:focus-visible {
+  outline: 2px solid var(--aqua);
+  outline-offset: 2px;
+}
+
+.qval {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3.2em;
+}
+
+.qnum {
+  font-size: clamp(1.3rem, 5vw, 1.8rem);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.qlabel {
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* dark banner variant */
+#sectionDisplay .qbtn {
+  background: rgba(62, 230, 240, 0.08);
+  border-color: rgba(62, 230, 240, 0.35);
+  color: #3ee6f0;
+}
+
+#sectionDisplay .qbtn:hover {
+  background: rgba(62, 230, 240, 0.2);
+}
+
+#sectionDisplay .qval {
+  color: rgba(200, 230, 240, 0.9);
+}
+
+#sectionDisplay .qnum {
+  color: #3ee6f0;
+  text-shadow: 0 0 12px rgba(62, 230, 240, 0.5);
+}
+
+/* water temperature row in the status panel */
+#displayrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 12px);
+}
+
+#watericon {
+  width: clamp(22px, 5.5vw, 34px);
+  height: clamp(22px, 5.5vw, 34px);
+  color: #3ee6f0;
+  filter: drop-shadow(0 0 8px rgba(62, 230, 240, 0.6));
+  flex-shrink: 0;
+}
+
+/* outdoor temperature markers (inside the status panel stepper label) */
+.qlabelrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#outdooricon {
+  width: 14px;
+  height: 14px;
+  color: #f0b429;
+  flex-shrink: 0;
+}
+
+#ambhabadge {
+  display: inline-flex;
+  align-items: center;
+}
+
+#ambhabadge svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* label + stepper row inside light cards */
+.qrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qrowlabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#nolink {
+  color: #f0b429;
+  font-size: 0.85em;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* Small numeric fields (hwconfig pinout & power levels) */
+input[type="text"].num-input {
+  width: 72px;
+  max-width: 72px;
+  padding: 9px 6px;
+  text-align: center;
 }
 
 /* ============ Sections as cards ============ */

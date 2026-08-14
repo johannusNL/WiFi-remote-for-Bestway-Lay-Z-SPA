@@ -4,7 +4,26 @@ ESP8266 hack to use as WiFi remote control for Bestway Lay-Z-Spa Whirlpools (inc
 
 Check out what is new i the release notes. (Link in the right column on this page - release version)<br>
 Also see the new [language support](README2.md) pulled into this rep by @dodemodexter
-=======
+
+---
+
+## Custom build — By Johan (2026)
+
+This copy of the project is customized for a **Bestway Miami 2021** (6-wire, square connector), hand-wired without PCB per the D1-mini tutorial: CIO data/clk/cs on **D4/D3/D2**, DSP on D7/D6/D5, audio on D0. That hardware config is the firmware default and is preloaded in `Code/data_base/hwcfg.json`, so a filesystem flash no longer loses it.
+
+What's different from upstream:
+
+- **Redesigned home screen**: dark status panel showing the water temperature large (e.g. `30°C`), with tappable icon buttons for pump, heater (orange = heating, green = ready), bubbles, unit (°C/°F) and — where the model supports it — jets and take-control. The old switches section is gone.
+- **Stepper controls** replace the sliders: `− / +` buttons for target temperature and display brightness right in the status panel, and for ambient temperature in the Control card.
+- **"no data from pump"** message instead of the cryptic `abc` when the ESP has no communication with the pump yet.
+- **MQTT config save fix** (password placeholder no longer blocks saving) and a WiFi signal icon in the header.
+- **OTA is the default upload method** (`pio run -t upload`, espota to the device IP, password `esp8266`). Individual web files can be updated without a filesystem flash via the upload page.
+
+| Home (desktop) | Home (mobile) | Hardware config |
+|---|---|---|
+| <img src="./Code/Screenshots/custom-home-desktop.png" width="420"> | <img src="./Code/Screenshots/custom-home-mobile.png" width="230"> | <img src="./Code/Screenshots/custom-hwconfig.png" width="420"> |
+
+---
 Latest code found in [Development branch](https://github.com/visualapproach/WiFi-remote-for-Bestway-Lay-Z-SPA/tree/development_v4)
 Build instructions and more: [Read the manual](bwc-manual.pdf)<br>
 Check out releasenotes by clicking the release version to the right on this page.<br>
@@ -49,11 +68,9 @@ Check out releasenotes by clicking the release version to the right on this page
 see build instructions for more info.
 
 #### Web Interface
-<img src="./pics/web01_overview.png" width="300"><br />
-<img src="./pics/web02_menu.png" width="300"><br />
-<img src="./pics/web03_spa-config.png" width="300"><br />
-<img src="./pics/web04_network-config.png" width="300"><br />
-<img src="./pics/web05_mqtt-config.png" width="300">
+See the up-to-date screenshots of the customized interface in the [Custom build](#custom-build--by-johan-2026) section above.
+
+<img src="./Code/Screenshots/custom-home-mobile.png" width="300">
 
 #### WiFi Module / Pump
 <img src="./pics/pcb.jpg" width="300"><br />

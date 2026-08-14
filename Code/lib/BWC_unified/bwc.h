@@ -91,6 +91,8 @@ class BWC {
         int pins[8];
         int tempSensorPin;
         unsigned int loop_count = 0;
+        /* Where the last ambient temperature came from: 0 = manual (web/http), 1 = MQTT (e.g. Home Assistant) */
+        uint8_t ambient_source = 0;
         CIO* cio = nullptr;
         DSP* dsp = nullptr;
         bool hasjets, hasgod;
@@ -181,6 +183,9 @@ class BWC {
         bool _notify;
         bool _vt_calibrated = false;
         bool _states_are_restored = false;
+        /* Daily auto-recalibration of the virtual temperature model */
+        bool _auto_recalibrate = false;
+        time_t _last_recal_secs = 0;
 };
 
 void save_settings_cb(BWC *bwcInstance);

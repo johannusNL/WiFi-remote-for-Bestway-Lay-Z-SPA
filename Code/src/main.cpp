@@ -592,6 +592,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t len)
             item.xtime = xtime;
             item.interval = interval;
             item.text = txt;
+            if(command == SETAMBIENTC || command == SETAMBIENTF) bwc->ambient_source = 0; //manual via web UI
             bwc->add_command(item);
         }
         break;
@@ -1064,6 +1065,7 @@ void handleAddCommand()
     item.xtime = xtime;
     item.interval = interval;
     item.text = txt;
+    if(command == SETAMBIENTC || command == SETAMBIENTF) bwc->ambient_source = 0; //manual via web/http
     bwc->add_command(item);
 
     server->send(200, F("text/plain"), F("ok"));
@@ -1892,6 +1894,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length)
         item.xtime = xtime;
         item.interval = interval;
         item.text = txt;
+        if(command == SETAMBIENTC || command == SETAMBIENTF) bwc->ambient_source = 1; //via MQTT (e.g. Home Assistant)
         bwc->add_command(item);
         return;
     }
@@ -1921,6 +1924,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length)
             item.xtime = xtime;
             item.interval = interval;
             item.text = txt;
+            if(command == SETAMBIENTC || command == SETAMBIENTF) bwc->ambient_source = 1; //via MQTT (e.g. Home Assistant)
             bwc->add_command(item);
         }
 

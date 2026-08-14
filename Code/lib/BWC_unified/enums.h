@@ -134,9 +134,11 @@ struct sStates
     uint8_t pump = 0;
     uint8_t temperature = 25;
     uint8_t target = 20;
-    uint8_t char1 = 'a';
-    uint8_t char2 = 'b';
-    uint8_t char3 = 'c';
+    /* Shown until the first valid packet from the pump arrives.
+       "---" reads as "no data" instead of the old cryptic "abc". */
+    uint8_t char1 = '-';
+    uint8_t char2 = '-';
+    uint8_t char3 = '-';
     uint8_t jets = 0;
     uint8_t error = 0;
     // uint8_t timerbutton = 0;

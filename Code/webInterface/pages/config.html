@@ -57,13 +57,21 @@
             <td>
                 <label for="calibration" data-i18n="label_calibrated">Calibrated:</label>
                 <!-- Au lieu de data-text, on utilise data-i18n="[data-text]clé" -->
-                <span data-i18n="[data-text]tooltip_calibrated_info" class="tooltip">?</span>
+                <span data-text="If checked, the virtual temperature is calibrated. Redo the calibration by unchecking and pressing the SAVE button." data-i18n="[data-text]tooltip_calibrated_info" class="tooltip">?</span>
             </td>
             <td>
                 <input type="checkbox" id="calibration" onclick="toggleCalibration()">
-                <span data-i18n="[data-text]tooltip_calibrate_instr" class="tooltip left">?</span>
+                <span data-text="Calibrate by keeping the heater OFF and the pump ON until the temperature has dropped a few degrees. Do not touch jets, bubbles etc. in the meantime. The water temperature must differ several degrees from ambient at the start." data-i18n="[data-text]tooltip_calibrate_instr" class="tooltip left">?</span>
             </td>
             <td><a href="calib.html" data-i18n="link_manual_cal">manual cal.</a></td>
+        </tr>
+        <tr>
+            <td>
+                <label for="autocal" data-i18n="label_autocal">Auto-calibrate daily:</label>
+                <span data-text="Once a day the calibrated flag is cleared so the ESP recalibrates the virtual temperature model at the next opportunity (pump running 5+ min, heater and bubbles off, natural temperature drift). Keeps the model accurate through the seasons without manual action." class="tooltip">?</span>
+            </td>
+            <td><input type="checkbox" id="autocal"></td>
+            <td></td>
         </tr>
     </table>
 </section>
@@ -273,6 +281,7 @@
                 var date = new Date(json.REBOOTTIME * 1000)
                 document.getElementById('lastboot').innerHTML = 'Last boot: ' + date.toLocaleString() + ' ' + json.REBOOTINFO
                 document.getElementById('calibration').checked = json.VTCAL
+                document.getElementById('autocal').checked = json.AUTOCAL
                 document.getElementById('lock_btn').checked = json.LCK
                 document.getElementById('timer_btn').checked = json.TMR
                 document.getElementById('bubbles_btn').checked = json.AIR
@@ -312,6 +321,7 @@
             'NOTIFTIME': parseInt(document.getElementById('notificationtime').value),
             'RESTORE': document.getElementById('restore').checked,
             'VTCAL': document.getElementById('calibration').checked,
+            'AUTOCAL': document.getElementById('autocal').checked,
             'LCK': document.getElementById('lock_btn').checked,
             'TMR': document.getElementById('timer_btn').checked,
             'AIR': document.getElementById('bubbles_btn').checked,

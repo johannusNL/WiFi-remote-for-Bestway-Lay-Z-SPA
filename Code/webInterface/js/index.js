@@ -65,14 +65,43 @@ if (localStorage.getItem('showSectionTemperature'))
 
 function setWebConfig()
 {
-	document.getElementById('sectionTemperature').style.display = (localStorage.getItem('showSectionTemperature') !== 'false' ? 'block' : 'none');
-	document.getElementById('sectionDisplay').style.display = (localStorage.getItem('showSectionDisplay') !== 'false' ? 'block' : 'none');
-	document.getElementById('sectionControl').style.display = (localStorage.getItem('showSectionControl') !== 'false' ? 'block' : 'none');
-	document.getElementById('sectionButtons').style.display = (localStorage.getItem('showSectionButtons') !== 'false' ? 'block' : 'none');
+	// the old Temperature card is gone; its values live in the status panel now
+	document.getElementById('sectionDisplay').style.display = (localStorage.getItem('showSectionDisplay') !== 'false' ? 'flex' : 'none');
+	// the Control card is gone; target/brightness/outdoor live in the status panel now
+	// buttons now live inside the display panel; the old sectionButtons is gone
 	document.getElementById('sectionTimer').style.display = (localStorage.getItem('showSectionTimer') !== 'false' ? 'block' : 'none');
 	document.getElementById('sectionTotals').style.display = (localStorage.getItem('showSectionTotals') !== 'false' ? 'block' : 'none');
-	document.getElementById('tableSlider').style.display = (localStorage.getItem('useControlSelector') !== 'false' ? 'none' : 'table');
-	document.getElementById('tableSelector').style.display = (localStorage.getItem('useControlSelector') !== 'false' ? 'table' : 'none');
+	// legacy slider/selector tables stay hidden; they only hold state for the stepper controls
+	document.getElementById('tableSlider').style.display = 'none';
+	document.getElementById('tableSelector').style.display = 'none';
+}
+
+/* Status-panel icon buttons: flip the hidden state checkbox, then send the toggle command */
+function iconToggle(checkboxId, cmd)
+{
+	var cb = document.getElementById(checkboxId)
+	cb.checked = !cb.checked
+	sendCommand(cmd)
+}
+
+/* Stepper buttons: bump the hidden input (clamped to its min/max), send, show instantly */
+function stepControl(inputId, delta, cmd)
+{
+	var el = document.getElementById(inputId)
+	var v = parseInt(el.value) + delta
+	var mn = parseInt(el.min), mx = parseInt(el.max)
+	if (!isNaN(mn) && v < mn) v = mn
+	if (!isNaN(mx) && v > mx) v = mx
+	el.value = v
+	sendCommand(cmd)
+	updateQuickVals()
+}
+
+function updateQuickVals()
+{
+	document.getElementById("tgtval").textContent = document.getElementById("temp").value + "°"
+	document.getElementById("ambval").textContent = document.getElementById("amb").value + "°"
+	document.getElementById("brtval").textContent = document.getElementById("brt").value
 }
 
 function loadWebConfig()
@@ -186,8 +215,10 @@ function handlemsg(e) {
         document.getElementById("jets").style.display = msgobj.HASJETS ? "table-cell" : "none"
         document.getElementById("jetsswitch").style.display = msgobj.HASJETS ? "table-cell" : "none"
         document.getElementById("jetstotals").style.display = msgobj.HASJETS ? "table-cell" : "none"
+        document.getElementById("st_jets").style.display = msgobj.HASJETS ? "" : "none"
         // godmode available
         document.getElementById("god").style.display = msgobj.HASGOD ? "table-cell" : "none"
+        document.getElementById("st_god").style.display = msgobj.HASGOD ? "" : "none"
         document.getElementById("godswitch").style.display = msgobj.HASGOD ? "table-cell" : "none"
     }
 
@@ -215,9 +246,30 @@ function handlemsg(e) {
             document.getElementById("htrspan").classList.add(msgobj.RED ? "heateron" : msgobj.GRN ? "heateroff" : "n-o-n-e")
         }
 
-        // display
-        document.getElementById("display").innerHTML = "" + String.fromCharCode(msgobj.CH1, msgobj.CH2, msgobj.CH3) + ""
-        document.getElementById("display").style.color = rgb(255 - dspBrtMultiplier * 8 + dspBrtMultiplier * (parseInt(msgobj.BRT) + 1), 0, 0)
+        // display ("---" = no packet from the pump received yet, see enums.h)
+        var dspchars = String.fromCharCode(msgobj.CH1, msgobj.CH2, msgobj.CH3)
+        var nolink = (msgobj.CH1 == 45 && msgobj.CH2 == 45 && msgobj.CH3 == 45)
+        if (!nolink && /^\s*\d+\s*$/.test(dspchars)) {
+            // numeric reading = temperature: show with degree sign and unit
+            document.getElementById("display").textContent = parseInt(dspchars, 10) + "°" + (msgobj.UNT ? "C" : "F")
+        } else {
+            // non-numeric (error codes, scrolling text, no-link dashes): show as-is
+            document.getElementById("display").textContent = dspchars
+        }
+        document.getElementById("nolink").style.display = nolink ? "block" : "none"
+        document.getElementById("display").style.opacity = (0.45 + 0.55 * (parseInt(msgobj.BRT) + 1) / 9).toFixed(2)
+
+        // status icons: pump/filter, heater (red=heating, green=ready), bubbles, jets
+        var setIcon = function (id, cls) {
+            document.getElementById(id).className = "sticon" + (cls ? " " + cls : "")
+        }
+        setIcon("st_pump", msgobj.FLT ? "on" : "")
+        setIcon("st_heat", msgobj.RED ? "heating" : msgobj.GRN ? "ready" : "")
+        setIcon("st_air", msgobj.AIR ? "on" : "")
+        setIcon("st_jets", msgobj.HJT ? "on" : "")
+        setIcon("st_god", msgobj.GOD ? "on" : "")
+        document.getElementById("st_unit").className = "sticon neutral"
+        document.getElementById("unitglyph").textContent = msgobj.UNT ? "°C" : "°F"
 
         // set control values (once)
         if (initControlValues) {
@@ -244,6 +296,18 @@ function handlemsg(e) {
         document.getElementById("sliderTempVal").innerHTML = msgobj.TGT
         document.getElementById("sliderAmbVal").innerHTML = msgobj.AMB
         document.getElementById("sliderBrtVal").innerHTML = msgobj.BRT
+
+        // stepper readouts (skip while a change is still in flight to avoid bouncing)
+        if (!updateTempState) document.getElementById("tgtval").textContent = msgobj.TGT + "°"
+        if (!updateAmbState) document.getElementById("ambval").textContent = msgobj.AMB + "°"
+        if (!updateBrtState) document.getElementById("brtval").textContent = msgobj.BRT
+
+        // outdoor temperature fed by Home Assistant over MQTT (AMBSRC 1): show badge, lock manual stepping
+        var haAmbient = msgobj.AMBSRC == 1
+        document.getElementById("ambhabadge").style.display = haAmbient ? "" : "none"
+        document.querySelectorAll("#ambctrl .ambstep").forEach(function (b) {
+            b.style.display = haAmbient ? "none" : ""
+        })
 
         // get selector elements
         var elemSelectorTemp = document.getElementById("selectorTemp")
@@ -355,7 +419,7 @@ function sendCommand(cmd) {
         value = getProperValue(value, 0, 8)
         document.getElementById("sliderBrtVal").innerHTML = value.toString()
         document.getElementById("selectorBrt").value = value.toString()
-        document.getElementById("display").style.color = rgb(255 - dspBrtMultiplier * 8 + dspBrtMultiplier * (value + 1), 0, 0)
+        document.getElementById("display").style.opacity = (0.45 + 0.55 * (value + 1) / 9).toFixed(2)
         updateBrtState = true
     } else if (btnMap[cmd] && (cmd == "toggleUnit" || cmd == "toggleBubbles" || cmd == "toggleHeater" || cmd == "togglePump" || cmd == "toggleHydroJets" || cmd == "toggleGodmode")) {
         value = document.getElementById(btnMap[cmd]).checked
